@@ -9,10 +9,17 @@ import ejs from "ejs";
 import session from 'express-session'; //needed for level 5
 import passport from 'passport';//needed for level 5
 import passportLocalMongoose from 'passport-local-mongoose';//needed for level 5
+import GitHubStrategy from 'passport-github';//for lvl 6 oauth
+import findOrCreate from "mongoose-findorcreate";//for lvl 6 oauth
+//import to use findorCreate function of mongoose for level6
+
+
 
 //APP consts
 const app = express();
 const port = process.env.PORT;
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 // const saltRounds = 10;
 // console.log(port);process.env.PORT is to refer to the .env file
 
@@ -27,7 +34,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
     secret: process.env.SECRET,
     resave: false,
-    saveUninitialized: false, //changed to false by lecturer;it was true by default
+    saveUninitialized: false, 
     // cookie: { secure: true }
 }))
 //always write this below the app.use(session) as seen above all this is lvl5
@@ -35,21 +42,21 @@ app.use(passport.initialize()); //read more on passport documentation to underst
 app.use(passport.session());
 
 
-
 //connecting to the server
-mongoose.connect(process.env.DB, {useNewUrlParser: true});
+mongoose.connect(process.env.DB, {useNewUrlParser: true,useUnifiedTopology: true});
 
 // schemas 
 const secretSchema= new mongoose.Schema({ 
-    Secrets: String,
-    dislikes: Number, 
-    likes: Number,
-    Comments: String,
+    secrets: String,
+    username: String
 })
 
 const userSchema= new mongoose.Schema({ 
-    email: {type: String},
+    username: {type: String},
     Password: {type: String},
+    githubId: {type: String},
+    secrets: [],
+    usernameSecrets:[],
     // googleId: String, //when using lvl 6 so it gets the user id saved on 
     //our db when we get the info from google.
     //so next time, we dont have to worry about duplicate data in db. 
@@ -59,7 +66,8 @@ const userSchema= new mongoose.Schema({
 
 //passportLocalMongoose is set below the schema to be used on
 userSchema.plugin(passportLocalMongoose);
-secretSchema.plugin(passportLocalMongoose);
+//plugin to use findorCreate function of mongoose for level6
+userSchema.plugin(findOrCreate); 
 
 //encrypting the password for level 2 auth this should be right before the model
 //encryptedFields is used to sepcify the fields(1 or more fields using,) 
@@ -149,7 +157,7 @@ secretSchema.plugin(passportLocalMongoose);
     // });
 //fifth use code as below where necessary inside registration route
     // //How to use passport for registration and user authentication
-    // User.register({username: userName}, passWord, function(err, user) {
+    // User.register({username: req.body.username}, req.body.password, function(err, user) {
     //     if (err) { 
     //         console.log("error while register");
     //         res.redirect("/register");
@@ -168,17 +176,12 @@ secretSchema.plugin(passportLocalMongoose);
         // }
 //7th having users to login req.login() is a function that helps look through the db
 //then authenticate the users
-        // const user = new User({
-        //     username: userName, 
-        //     password: passWord
-        // })
-        // req.login(user, function(err) {
-        //     if (err) { 
-        //         console.log(err); 
-        //     }else{ 
-        //             res.redirect("/secrets");
-        //     }      
-        //   });
+// app.post("/login", 
+// passport.authenticate('local', { failureRedirect: '/register', failureMessage: true }),
+// function(req, res) {
+//   res.redirect('/secrets');
+// }
+// );
 //8th to have a user logout and end cookie session req.logout()
 //automatically calls that function within passport
         // req.logout(function(err) {
@@ -250,44 +253,59 @@ const User = mongoose.model("User", userSchema);
 // passport.deserializeUser(User.deserializeUser());
 //or use this method to serialize and deserialize users 
 // this method is better if you are using 3rd authentication
-passport.serializeUser(function(User, cb) {
+passport.use(User.createStrategy());
+
+passport.serializeUser(function(user, cb) {
     process.nextTick(function() {
-      cb(null, { id: User.id, username: User.email });
+      return cb(null, {
+        id: user.id,
+        username: user.username,
+      });
     });
   });
-  
-  passport.deserializeUser(function(User, cb) {
+  passport.deserializeUser(function(user, cb) {
     process.nextTick(function() {
-      return cb(null, User);
+      return cb(null, user);
     });
   });
 
+passport.use(new GitHubStrategy({
+    clientID: GITHUB_CLIENT_ID,
+    clientSecret: GITHUB_CLIENT_SECRET,
+    callbackURL: "http://localhost:4000/auth/github/secrets"
+},
+function(accessToken, refreshToken, profile, cb) {
+    // console.log(profile);
+    User.findOrCreate({ githubId: profile.id }, function (err, user) {
+      return cb(err, User);
+    });
+  }
+));
 //Define Const 
 
 //define routes and axios request if needed
 //get routes
+//displays home page
 app.get("/", (req, res)=>{
     res.render("home");
 });
-
+//displays login page
 app.get("/login", (req, res)=>{
     res.render("login");
 });
-
+//displays register page
 app.get("/register", (req, res)=>{
     res.render("register");
 });
-
-app.get("/secrets", (req, res)=>{
-    //how to use level5 to authenticate a user before using a anypage 
-    //granting page priviledges to only authenticated users
+//displays submit page
+app.get("/submit", (req, res)=>{
     if(req.isAuthenticated()){
-        res.render("secrets");
+        res.render("submit");
     }else{
         res.redirect("/login");
     }
 });
-
+//logout functions works
 app.get("/logout", (req, res)=>{
     // how to logout in level 5 and to end cookies sessions
     req.logout(function(err) {
@@ -298,90 +316,126 @@ app.get("/logout", (req, res)=>{
         }      
       });
 });
+//needs work to render to secrets ejs page
+app.get("/secrets", async(req, res)=>{
+    //how to use level5 to authenticate a user before using a anypage 
+    //granting page priviledges to only authenticated users
+    // if(req.isAuthenticated()){
+    //     const response = await Secret.find({});
+    //     // console.log(response);
+    //     res.render("secrets", {secrets: response, defaultSecret:"Jack Bauer is my hero."});
+    // }else{
+    //     res.redirect("/login");
+    // }
+    if(req.isAuthenticated()){
+        // console.log(req.user.id+"secrets");
+        // const foundUsers = await User.find({"secrets": {$ne: null}})
+        // const foundUsers = await User.find({}, {secrets: 1});
+        // var foundUsers = await (await User.find({})).map(mySecrets);
+        // function mySecrets(item){
+        //     return item.secrets;
+        // }
+        var foundSecrets = await Secret.find({});
+        // console.log(foundSecrets);
+        // const nowhg = foundUsers.map(mySecrets);
+        // res.json(foundUsers);
+        if (foundSecrets) {
+            res.render("secrets", 
+                {displaysecrets: foundSecrets,
+                defaultSecret:"Jack Bauer is my hero.", 
+                defaultSecretUser:"Angela"});
+        }
+    }else if (!req.isAuthenticated()) {
+        res.redirect("/login");
+    }
+});
+//get req for oauth
+app.get('/auth/github',
+  passport.authenticate('github')
+);
 
-app.get("/submit", (req, res)=>{
-    res.render("submit");
+app.get('/auth/github/secrets', 
+  passport.authenticate('github', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/secrets');
+    // console.log("your are here")
 });
 
 ;//post routes
-app.post("/login", async(req, res)=>{
-    const userName = req.body.username;
-    const passWord = req.body.password; 
-    //creating a const user to use the req.login() for level 5
-    const user = new User({
-        username: userName, 
-        password: passWord
-    })
-    // const findUser =await User.findOne({email: userName});
-    // // res.send(findUser.email);
-    // // console.log
-    // if (findUser){
-    //     // how to compare password saved as hash(salt+hash) lvl4 in the db
-    //     // const result = await bcrypt.compare(passWord, findUser.Password)
-    //         // result == true
-    //     // if (findUser.Password === passWord){ this is rqd through levels 1,2,3
-    //     // if (result===true){this is rqd through level 4
-    //     if (findUser){ // temp
-    //         res.render("secrets");
-    //            // res.send(findUser.email);
-    //     }else{
-    //         res.render("login");
-    //     }     
-    // }else{
-    //     res.render("register");
-    // }
-    //how to login on level 5 using passport
-    req.login(user, function(err) {
-        if (err) { 
-            console.log(err); 
-        }else{ 
-                res.redirect("/secrets");
-        }      
-      });
-});
+//confirm if login function it needs work
+// good technique using passport//done
+app.post("/login", 
+passport.authenticate('local', { failureRedirect: '/register', failureMessage: true }),
+function(req, res) {
+  res.redirect('/secrets');
+}
+);
+
+
+//confirm if register function it needs work //good//done
 app.post("/register", async(req, res)=>{
-    const userName = req.body.username;
-    const passWord = req.body.password;
-    // const findUser = await User.findOne({email: userName});
-    // console.log(findUser);  
-    // if (findUser){
-    //     res.redirect("/login");
-    //     // res.send("you exist")
-    // } else if(!findUser){
-    //     // res.send("you do not exist")}
-    //     // how use salt and hash together lvl 4
-    //     // const hash = await bcrypt.hash(passWord, saltRounds)  for level 4
-    //     // Store hash in your password DB.
-    //     const newUser = new User({
-    //         email:    userName,
-    //         // Password: hash, for level 4
-    //         Password: passWord,
-    //     }).save() // important to use .save() for encryption plugins OF LEVL2 to work
-    //     const seePosts = await User.insertMany(newUser);
-    //     console.log(seePosts);
-    //     if (seePosts){
-    //         res.render ("secrets");
-    //         // res.send("you're NOt welcome")
-    //     }else{
-    //         res.status(404)
-    //     }
-    // }
-    //How to use passport for registration and user authentication levl5
-        User.register({username: userName}, passWord, function(err, user) {
-        if (err) { 
-            console.log("error while register");
-            res.redirect("/register");
-        }else{ 
-            passport.authenticate("local")(req,res, function(){
-                res.redirect("/secrets");
-            });
-        }
-    });
+    User.register({username: req.body.username}, req.body.password, function(err, user) {
+            if (err) { 
+                console.log(err);
+                res.redirect("/register");
+            }else{ 
+                passport.authenticate("local")(req,res, function(){
+                    res.redirect("/secrets");
+                });
+            }
+        });
 });
 
-//save usersecrets in db // workon
-app.post("/submit", (req, res)=>{
-})
+//detect how to save usersecrets in db // workon //done
+app.post("/submit", async(req, res)=>{
+    // const newPost = req.body.secret;
+    const submittedSecret = req.body.secret;
+    const secretuserName = new Secret({
+        secrets: req.body.secret,
+        username: req.body.secretuserName
+    });    
+    //Once the user is authenticated and their session gets saved, their user details are saved to req.user.
+      // console.log(req.user.id);
+    //   const foundUser =await User.updateOne({_id: req.user.id}, {$set:{secrets: submittedSecret}})
+    // const foundUser = await User.insertMany({ secrets: submittedSecret});
+    if (req.isAuthenticated()){
+        await User.updateOne({_id: req.user.id}, 
+            {$push: {secrets: submittedSecret, usernameSecrets: req.body.secretuserName}});
+        const foundSecrets = await Secret.insertMany(secretuserName);
+        if (foundSecrets){
+            res.redirect("/secrets");
+        }
+    }else{
+        res.redirect("/login");
+    }
+    // console.log (foundUser);
+    //   res.redirect("/secrets");
+        //   if (foundUser) {
+        //     foundUser.secrets = submittedSecret;
+        //     foundUser.save(function(){
+        //       res.redirect("/secrets");
+        //     });
+        //   }
+        
+    // const newSecret = new Secret({
+    //     Secrets: newPost,
+    //     dislikes: req.body.dislikes, 
+    //     likes: req.body.likes,
+    //     Comments: req.body.Comments,
+    // });
+    // newSecret.save();
+    // await Secret.insertMany(newSecret);
+    // console.log(newSecret);
+    // const foundUser = req.user;
+    // console.log(foundUser)
+    // if(foundUser){
+    //     foundUser.secrets = newPost;
+    //     await User.insertMany(foundUser);
+    //     res.redirect("/secrets");
+    // }
+    // res.render("/secrets");
+});
 
 //put routes // if you need to update the whole data set i.e edit our secret
 // app.put("/new", (req, res)=>{
