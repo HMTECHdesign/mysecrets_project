@@ -110,7 +110,7 @@ app.get("/secrets", async(req, res)=>{
             res.render("secrets", 
                 {displaysecrets: foundSecrets,
                 defaultSecret:"Jack Bauer is my hero.", 
-                defaultSecretUser:"Angela"});
+                defaultSecretUser:"Annoy John"});
         }
     }else if (!req.isAuthenticated()) {
         res.redirect("/login");
