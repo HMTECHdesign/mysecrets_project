@@ -1,13 +1,13 @@
-import 'dotenv/config';  
-import express from "express";
-import bodyParser from "body-parser";
-import mongoose from "mongoose";
-import ejs from "ejs";
-import session from 'express-session'; 
-import passport from 'passport';
-import passportLocalMongoose from 'passport-local-mongoose';
-import GitHubStrategy from 'passport-github';
-import findOrCreate from "mongoose-findorcreate";
+// import 'dotenv/config';  
+const express = require ("express");
+const bodyParser = ("body-parser");
+const mongoose = ("mongoose");
+const ejs = ("ejs");
+const session = ('express-session'); 
+const passport = ( 'passport');
+const passportLocalMongoose = ('passport-local-mongoose');
+const GitHubStrategy = ('passport-github');
+const findOrCreate = ("mongoose-findorcreate");
 
 const app = express();
 const port = process.env.PORT;
