@@ -1,13 +1,13 @@
 // import 'dotenv/config';  
-require('dotenv').config();
-const bodyParser = ("body-parser");
-const mongoose = ("mongoose");
-const ejs = ("ejs");
-const session = ('express-session'); 
-const passport = ( 'passport');
-const passportLocalMongoose = ('passport-local-mongoose');
-const GitHubStrategy = ('passport-github');
-const findOrCreate = ("mongoose-findorcreate");
+require('dotenv').config()
+const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const ejs = require("ejs");
+const session = require('express-session'); 
+const passport = require( 'passport');
+const passportLocalMongoose = require('passport-local-mongoose');
+const GitHubStrategy = require('passport-github');
+const findOrCreate = require("mongoose-findorcreate");
 const express = require('express');
 
 const app = express();
