@@ -1,14 +1,14 @@
-// import 'dotenv/config';  
-require('dotenv').config()
-const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-const ejs = require("ejs");
-const session = require('express-session'); 
-const passport = require( 'passport');
-const passportLocalMongoose = require('passport-local-mongoose');
-const GitHubStrategy = require('passport-github');
-const findOrCreate = require("mongoose-findorcreate");
-const express = require('express');
+import 'dotenv/config';  
+// require('dotenv').config()
+import bodyParser from "body-parser";
+import mongoose from "mongoose";
+import ejs from "ejs";
+import session from "express-session"; 
+import passport from "passport";
+import passportLocalMongoose from "passport-local-mongoose";
+import GitHubStrategy from "passport-github";
+import findOrCreate from "mongoose-findorcreate";
+import express from "express";
 
 const app = express();
 const port = process.env.PORT;
@@ -167,9 +167,10 @@ app.post("/submit", async(req, res)=>{
     
 });
 
-const server = app.listen(port, () => {
+// const server = 
+app.listen(port, () => {
     console.log(`Backend server is running on http://localhost:${port}`);
 });
 
-server.keepAliveTimeout = 120 * 1000;
-server.headersTimeout = 120 * 1000;
+// server.keepAliveTimeout = 120 * 1000;
+// server.headersTimeout = 120 * 1000;
