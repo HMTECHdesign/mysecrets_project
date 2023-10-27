@@ -1,5 +1,5 @@
 // import 'dotenv/config';  
-const express = require ("express");
+require('dotenv').config()
 const bodyParser = ("body-parser");
 const mongoose = ("mongoose");
 const ejs = ("ejs");
@@ -8,6 +8,7 @@ const passport = ( 'passport');
 const passportLocalMongoose = ('passport-local-mongoose');
 const GitHubStrategy = ('passport-github');
 const findOrCreate = ("mongoose-findorcreate");
+const express = require('express');
 
 const app = express();
 const port = process.env.PORT;
