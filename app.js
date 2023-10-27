@@ -167,6 +167,9 @@ app.post("/submit", async(req, res)=>{
     
 });
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
     console.log(`Backend server is running on http://localhost:${port}`);
 });
+
+server.keepAliveTimeout = 120 * 1000;
+server.headersTimeout = 120 * 1000;
