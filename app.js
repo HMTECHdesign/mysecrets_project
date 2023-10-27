@@ -1,5 +1,5 @@
 // import 'dotenv/config';  
-require('dotenv').config()
+require('dotenv').config();
 const bodyParser = ("body-parser");
 const mongoose = ("mongoose");
 const ejs = ("ejs");
